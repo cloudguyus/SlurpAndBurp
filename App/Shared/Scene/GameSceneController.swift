@@ -1,5 +1,6 @@
 import RealityKit
 import SlurpAndBurpCore
+import SwiftUI
 import simd
 
 /// Owns the RealityKit world for one round and moves it to match the simulation.
