@@ -95,32 +95,34 @@ final class LevelBalanceTests: XCTestCase {
         }
     }
 
-    func testClearingALevelReachesALegendaryBurp() throws {
-        let session = GameSession(level: LevelCatalog.level(.picnic))
-        var steps = 0
-        while session.phase == .playing && steps < 20_000 {
-            steps += 1
-            let radius = session.holeRadius
-            if let next = session.props
-                .filter({ !$0.consumed && $0.slurp <= 0 })
-                .sorted(by: { $0.radius < $1.radius })
-                .first(where: { GrowthCurve.canEat(holeRadius: radius, objectRadius: $0.radius) }) {
-                session.testingMoveHole(to: next.position)
+    func testClearingEveryLevelReachesALegendaryBurp() {
+        for id in LevelID.allCases {
+            let session = GameSession(level: LevelCatalog.level(id))
+            var steps = 0
+            while session.phase == .playing && steps < 20_000 {
+                steps += 1
+                let radius = session.holeRadius
+                if let next = session.props
+                    .filter({ !$0.consumed && $0.slurp <= 0 })
+                    .sorted(by: { $0.radius < $1.radius })
+                    .first(where: { GrowthCurve.canEat(holeRadius: radius, objectRadius: $0.radius) }) {
+                    session.testingMoveHole(to: next.position)
+                }
+                session.tick(deltaTime: 1.0 / 30.0)
             }
-            session.tick(deltaTime: 1.0 / 30.0)
-        }
-        XCTAssertNotEqual(session.phase, .playing, "picnic never cleared after \(steps) steps")
-        XCTAssertEqual(session.percentEaten, 100, accuracy: 0.001)
-        XCTAssertEqual(session.burp, .legendary)
-        XCTAssertEqual(ScoreRules.stars(percent: session.percentEaten), 3)
-        XCTAssertGreaterThan(session.finalScore, session.eatenPoints)
+            XCTAssertNotEqual(session.phase, .playing, "\(id) never cleared after \(steps) steps")
+            XCTAssertEqual(session.percentEaten, 100, accuracy: 0.001)
+            XCTAssertEqual(session.burp, .legendary)
+            XCTAssertEqual(ScoreRules.stars(percent: session.percentEaten), 3)
+            XCTAssertGreaterThan(session.finalScore, session.eatenPoints)
 
-        var safety = 0
-        while session.phase == .burping && safety < 500 {
-            session.tick(deltaTime: 0.1)
-            safety += 1
+            var safety = 0
+            while session.phase == .burping && safety < 500 {
+                session.tick(deltaTime: 0.1)
+                safety += 1
+            }
+            XCTAssertEqual(session.phase, .results)
         }
-        XCTAssertEqual(session.phase, .results)
     }
 
     private func assertKinds(_ id: LevelID, _ kinds: [PropKind]) {

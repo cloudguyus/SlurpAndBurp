@@ -315,19 +315,37 @@ public final class GameSession {
 
         let cleared = eatenCount == props.count && !props.isEmpty
         if timeRemaining <= 0 || cleared {
-            finishRound()
+            finishRound(into: &events)
         }
         return events
     }
 
-    private func finishRound() {
+    /// A bite that has only just tipped in does not count when the clock hits zero.
+    /// One that is almost down the hole still lands.
+    private static let committedSlurp: Float = 0.8
+
+    private func finishRound(into events: inout [SwallowEvent]) {
         for index in props.indices where props[index].slurp > 0 && !props[index].consumed {
-            props[index].consumed = true
-            props[index].slurp = 1
-            holeMass += props[index].mass
-            eatenMass += props[index].mass
-            eatenPoints += props[index].score
-            eatenCount += 1
+            if props[index].slurp >= Self.committedSlurp {
+                props[index].consumed = true
+                props[index].slurp = 1
+                props[index].position = holePosition
+                holeMass += props[index].mass
+                eatenMass += props[index].mass
+                eatenPoints += props[index].score
+                eatenCount += 1
+                events.append(
+                    SwallowEvent(
+                        propID: props[index].id,
+                        kind: props[index].kind,
+                        score: props[index].score,
+                        mass: props[index].mass,
+                        radius: props[index].radius
+                    )
+                )
+            } else {
+                props[index].slurp = 0
+            }
         }
         let percent = percentEaten
         burp = ScoreRules.burpTier(percent: percent)

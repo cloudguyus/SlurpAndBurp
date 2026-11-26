@@ -23,6 +23,33 @@ final class SessionAndProgressTests: XCTestCase {
         XCTAssertEqual(session.burp, .legendary)
     }
 
+    func testAJustStartedSlurpDoesNotCountWhenTimeRunsOut() {
+        let session = GameSession(level: emptyLevel(props: [grapeOnTheHole()], duration: 0.05))
+        var steps = 0
+        while session.phase == .playing && steps < 10 {
+            session.tick(deltaTime: 0.05)
+            steps += 1
+        }
+        XCTAssertEqual(session.phase, .burping)
+        XCTAssertEqual(session.eatenCount, 0)
+        XCTAssertEqual(session.props[0].slurp, 0)
+        XCTAssertEqual(session.burp, .hic)
+        XCTAssertEqual(session.finalScore, 0)
+    }
+
+    func testANearlyFinishedSlurpStillCountsAtTheBuzzer() {
+        let session = GameSession(level: emptyLevel(props: [grapeOnTheHole()], duration: 0.34))
+        var steps = 0
+        while session.phase == .playing && steps < 30 {
+            session.tick(deltaTime: 0.05)
+            steps += 1
+        }
+        XCTAssertEqual(session.eatenCount, 1)
+        XCTAssertEqual(session.percentEaten, 100, accuracy: 0.001)
+        XCTAssertEqual(session.burp, .legendary)
+        XCTAssertGreaterThan(session.finalScore, 750)
+    }
+
     func testABuildingDoesNotFallInAtTheStart() {
         let building = PropSpawn(
             id: 1, kind: .building, position: .zero, yaw: 0,
@@ -114,15 +141,23 @@ final class SessionAndProgressTests: XCTestCase {
         defaults.removePersistentDomain(forName: suiteName)
     }
 
-    private func emptyLevel(props: [PropSpawn], arena: Float = 10) -> LevelDefinition {
+    private func emptyLevel(props: [PropSpawn], arena: Float = 10, duration: TimeInterval = 120) -> LevelDefinition {
         LevelDefinition(
             id: .picnic,
             name: "Test",
             blurb: "Test",
-            duration: 120,
+            duration: duration,
             arenaRadius: arena,
             props: props,
             hints: ["Test"]
+        )
+    }
+
+    private func grapeOnTheHole() -> PropSpawn {
+        PropSpawn(
+            id: 1, kind: .grape, position: Vec2(x: 0.05, y: 0), yaw: 0,
+            radius: PropKind.grape.radius, height: PropKind.grape.height,
+            mass: 0.4, score: 12
         )
     }
 

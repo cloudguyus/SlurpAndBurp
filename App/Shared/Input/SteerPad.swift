@@ -101,6 +101,7 @@ private struct MacKeyCatcher: NSViewRepresentable {
         var onSteer: (Vec2) -> Void
         var onEscape: () -> Void
         private var monitor: Any?
+        private var observers: [NSObjectProtocol] = []
         private var held: Set<UInt16> = []
 
         init(onSteer: @escaping (Vec2) -> Void, onEscape: @escaping () -> Void) {
@@ -127,13 +128,31 @@ private struct MacKeyCatcher: NSViewRepresentable {
                 self.onSteer(Self.vector(self.held))
                 return nil
             }
+            let names = [NSWindow.didResignKeyNotification, NSApplication.didResignActiveNotification]
+            for name in names {
+                let token = NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                    self?.releaseKeys()
+                }
+                observers.append(token)
+            }
+        }
+
+        func releaseKeys() {
+            guard !held.isEmpty else { return }
+            held.removeAll()
+            onSteer(.zero)
         }
 
         func stop() {
+            releaseKeys()
             if let monitor {
                 NSEvent.removeMonitor(monitor)
                 self.monitor = nil
             }
+            for token in observers {
+                NotificationCenter.default.removeObserver(token)
+            }
+            observers.removeAll()
         }
 
         private static func vector(_ held: Set<UInt16>) -> Vec2 {

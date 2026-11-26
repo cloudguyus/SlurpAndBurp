@@ -18,23 +18,26 @@ final class GameSceneController {
     }
 
     func install(_ content: inout RealityViewCameraContent) {
-        guard !installed else { return }
-        installed = true
-        content.camera = .virtual
-        camera.camera = PerspectiveCameraComponent(near: 0.04, far: 400, fieldOfViewInDegrees: 70)
-        world.addChild(Scenery.build(level: level))
-        for spawn in level.props {
-            let entity = PropFactory.make(spawn.kind)
-            entity.scale = SIMD3(repeating: spawn.radius)
-            entity.position = [spawn.position.x, 0, spawn.position.y]
-            entity.orientation = simd_quatf(angle: spawn.yaw, axis: [0, 1, 0])
-            props[spawn.id] = entity
-            world.addChild(entity)
+        if !installed {
+            installed = true
+            camera.camera = PerspectiveCameraComponent(near: 0.04, far: 400, fieldOfViewInDegrees: 70)
+            world.addChild(Scenery.build(level: level))
+            for spawn in level.props {
+                let entity = PropFactory.make(spawn.kind)
+                entity.scale = SIMD3(repeating: spawn.radius)
+                entity.position = [spawn.position.x, 0, spawn.position.y]
+                entity.orientation = simd_quatf(angle: spawn.yaw, axis: [0, 1, 0])
+                props[spawn.id] = entity
+                world.addChild(entity)
+            }
+            world.addChild(hole.root)
+            camera.look(at: .zero, from: [0, 8, 5.5], relativeTo: nil)
         }
-        world.addChild(hole.root)
+        // SwiftUI can rebuild the RealityView (a rotation is enough). The meshes stay,
+        // but the new view needs the same entities attached again.
+        content.camera = .virtual
         content.add(world)
         content.add(camera)
-        camera.look(at: .zero, from: [0, 8, 5.5], relativeTo: nil)
     }
 
     func apply(session: GameSession, time: Float, shake: Float) {

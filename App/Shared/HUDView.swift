@@ -17,7 +17,7 @@ struct HUDView: View {
                         Image(systemName: paused ? "play.fill" : "pause.fill")
                             .font(.system(size: 16, weight: .bold))
                             .foregroundStyle(Palette.ink)
-                            .frame(width: 40, height: 40)
+                            .frame(width: 44, height: 44)
                             .background(.white.opacity(0.9), in: Circle())
                     }
                     .buttonStyle(.plain)
@@ -40,7 +40,6 @@ struct HUDView: View {
                 .allowsHitTesting(false)
         }
         .padding(.horizontal, 16)
-        .padding(.top, 8)
     }
 
     private var timer: some View {

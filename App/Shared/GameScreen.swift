@@ -1,6 +1,9 @@
 import RealityKit
 import SlurpAndBurpCore
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 struct GameScreen: View {
     @StateObject private var model: GameModel
@@ -43,11 +46,18 @@ struct GameScreen: View {
                     onSteer: { model.setSteer($0) },
                     onEscape: { model.togglePause() }
                 )
-            if snapshot.phase == .playing || snapshot.phase == .burping {
-                HUDView(snapshot: snapshot, paused: model.userPaused, onPause: { model.togglePause() })
-            }
-            if showHints(snapshot) {
-                hintCard(snapshot)
+            if snapshot.phase == .playing || snapshot.phase == .burping || showHints(snapshot) {
+                VStack(spacing: 10) {
+                    if snapshot.phase == .playing || snapshot.phase == .burping {
+                        HUDView(snapshot: snapshot, paused: model.userPaused, onPause: { model.togglePause() })
+                    }
+                    Spacer()
+                        .allowsHitTesting(false)
+                    if showHints(snapshot) {
+                        hintCard
+                    }
+                }
+                .padding(playfieldPadding)
             }
             if snapshot.phase == .burping {
                 burpBanner(snapshot)
@@ -66,8 +76,10 @@ struct GameScreen: View {
                     onNext: model.session.level.id.next.map { next in { onNext?(next) } },
                     onLevels: onExit
                 )
+                .padding(playfieldPadding)
             }
         }
+        .ignoresSafeArea()
         .offset(shakeOffset)
         .onReceive(Timer.publish(every: 1.0 / 60.0, tolerance: 1.0 / 120.0, on: .main, in: .common).autoconnect()) { date in
             model.advance(to: date)
@@ -90,21 +102,41 @@ struct GameScreen: View {
         return elapsed < 12
     }
 
-    private func hintCard(_ snapshot: RoundSnapshot) -> some View {
-        VStack {
-            Spacer()
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(model.session.level.hints, id: \.self) { hint in
-                    Text(hint)
-                        .font(.system(.body, design: .rounded).weight(.semibold))
-                        .foregroundStyle(Palette.ink)
-                }
+    /// Distance from the physical screen edges to the island, home indicator, and landscape sides.
+    private var playfieldPadding: EdgeInsets {
+        #if os(iOS)
+        let raw = Self.iphoneSafeArea()
+        return EdgeInsets(
+            top: raw.top + 8,
+            leading: raw.left + 8,
+            bottom: raw.bottom + 12,
+            trailing: raw.right + 8
+        )
+        #else
+        return EdgeInsets(top: 12, leading: 16, bottom: 16, trailing: 16)
+        #endif
+    }
+
+    #if os(iOS)
+    private static func iphoneSafeArea() -> UIEdgeInsets {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let window = scenes.flatMap(\.windows).first { $0.isKeyWindow } ?? scenes.first?.windows.first
+        return window?.safeAreaInsets ?? UIEdgeInsets(top: 59, left: 0, bottom: 34, right: 0)
+    }
+    #endif
+
+    private var hintCard: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(model.session.level.hints, id: \.self) { hint in
+                Text(hint)
+                    .font(.system(.body, design: .rounded).weight(.semibold))
+                    .foregroundStyle(Palette.ink)
             }
-            .padding(16)
-            .frame(maxWidth: 420, alignment: .leading)
-            .background(.white.opacity(0.92), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .padding(.bottom, 24)
         }
+        .padding(16)
+        .frame(maxWidth: 420, alignment: .leading)
+        .background(.white.opacity(0.92), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .frame(maxWidth: .infinity)
         .allowsHitTesting(false)
     }
 
