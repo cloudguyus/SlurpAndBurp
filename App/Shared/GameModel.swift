@@ -31,11 +31,11 @@ final class GameModel: ObservableObject {
         if let percent {
             session.previewBurp(percent: percent)
         }
+        snapshot = session.snapshot()
         if LaunchConfig.freeze {
             userPaused = true
+            session.isPaused = true
         }
-        session.isPaused = userPaused
-        snapshot = session.snapshot()
     }
 
     func setSteer(_ steer: Vec2) {

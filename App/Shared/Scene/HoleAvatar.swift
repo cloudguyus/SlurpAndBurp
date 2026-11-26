@@ -112,7 +112,7 @@ final class HoleAvatar {
         tongue.scale = [mouthWidth * 0.45, mouthHeight * 0.7, radius * 0.08]
 
         let blink = frame.time.truncatingRemainder(dividingBy: 3.6) > 3.38
-        var eyeScale = 0.11 + min(radius, 3.5) * 0.045
+        let eyeScale = 0.11 + min(radius, 3.5) * 0.045
         var squint: Float = blink ? 0.12 : 1
         if frame.mood == .burping {
             squint = 0.18 + 0.12 * sin(frame.burpProgress * .pi)
