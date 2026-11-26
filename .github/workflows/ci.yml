@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  core-tests:
+    name: Core unit tests
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run XCTest for the game rules
+        run: swift test
+
+  build-ios:
+    name: Build iOS
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the iOS simulator app
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project App/SlurpAndBurp.xcodeproj \
+            -scheme SlurpAndBurp-iOS \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build | xcbeautify
+      - name: Screenshot the simulator
+        run: |
+          set -euo pipefail
+          APP=$(find "$RUNNER_TEMP/DerivedData" -path '*Debug-iphonesimulator/SlurpAndBurp.app' -type d | head -1)
+          test -n "$APP"
+          echo "Installing $APP"
+          UDID=$(xcrun simctl list devices available | awk -F '[()]' '/iPhone 17 \(/ { udid=$2 } END { print udid }')
+          test -n "$UDID"
+          echo "Booting $UDID"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$APP"
+          mkdir -p screenshots
+          shot() {
+            local name="$1"
+            shift
+            xcrun simctl terminate "$UDID" com.cloudguyus.SlurpAndBurp || true
+            xcrun simctl launch "$UDID" com.cloudguyus.SlurpAndBurp "$@"
+            sleep 6
+            xcrun simctl io "$UDID" screenshot "screenshots/${name}.png"
+          }
+          shot picnic --level picnic --freeze
+          shot burp --level picnic --screen burp --percent 96 --freeze
+          shot results --screen results
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-screenshots
+          path: screenshots/*.png
+          if-no-files-found: ignore
+
+  build-macos:
+    name: Build macOS
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the Mac app
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project App/SlurpAndBurp.xcodeproj \
+            -scheme SlurpAndBurp-macOS \
+            -destination 'platform=macOS' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build | xcbeautify
